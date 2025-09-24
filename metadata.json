@@ -1,0 +1,5 @@
+{
+  "name": "MelodyAI",
+  "description": "An AI music generation platform with a dark-themed UI, enabling users to create music from text prompts and share their creations instantly. Inspired by Suno.com.",
+  "requestFramePermissions": []
+}
