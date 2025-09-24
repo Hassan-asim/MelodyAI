@@ -17,24 +17,26 @@ export async function generateTrack(prompt: string, apiKey: string): Promise<{ m
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // New prompt: Instruct the AI to focus on audio quality and use a simple visual,
-    // which is more effective for a video-generation model.
-    const videoPrompt = `An audio track of a song with vocals about "${prompt}". The video can be a simple, static image or an abstract visualizer, but the main focus is high-quality audio with music and singing.`;
+    // Step 1: Generate lyrics first to ensure vocals match.
+    const lyrics = await generateLyrics(prompt, ai);
+    if (lyrics === "Lyrics could not be generated for this track.") {
+        throw new Error("Failed to generate lyrics, cannot proceed with audio generation.");
+    }
 
-    // Generate lyrics and video in parallel to save time
-    const [lyrics, videoOperation] = await Promise.all([
-        generateLyrics(prompt, ai),
-        ai.models.generateVideos({
-            model: 'veo-2.0-generate-001',
-            prompt: videoPrompt,
-            config: {
-                numberOfVideos: 1,
-            },
-        })
-    ]);
+    // Step 2: Create a detailed prompt for the video/audio generation model,
+    // instructing it to use the generated lyrics for the vocals.
+    const videoPrompt = `An audio track of a song with vocals. The style should be "${prompt}". The vocals must sing these lyrics exactly: \n\n${lyrics}\n\nThe video can be a simple, static image or an abstract visualizer. The main focus is high-quality audio with music and singing that follows the provided lyrics.`;
 
-    let operation = videoOperation;
-    // Poll for the video result
+    // Step 3: Generate the video, which contains the final audio track.
+    let operation = await ai.models.generateVideos({
+        model: 'veo-2.0-generate-001',
+        prompt: videoPrompt,
+        config: {
+            numberOfVideos: 1,
+        },
+    });
+
+    // Step 4: Poll for the video result. This can take a few minutes.
     while (!operation.done) {
       await new Promise(resolve => setTimeout(resolve, 10000));
       operation = await ai.operations.getVideosOperation({ operation: operation });
